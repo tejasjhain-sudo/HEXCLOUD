@@ -22,12 +22,17 @@ export function effectiveWalletBalance(user: DbUser): number {
   return Number(user.wallet_balance);
 }
 
-/** Grant ₹10,000 testing credits valid for 2 hours (once per user). */
+/** Grant ₹10,000 testing credits after Aadhaar + ₹5 verification (once per user). */
 export async function grantTestingTrial(userId: string, email: string): Promise<DbUser | null> {
   const { data: user, error } = await supabaseAdmin.from('users').select('*').eq('id', userId).maybeSingle();
   if (error || !user) return null;
 
   if (user.role === 'ADMIN') return user as DbUser;
+
+  if (!user.aadhaar_verified_at || !user.trial_verification_paid_at) {
+    logger.error('Trial grant blocked: complete Aadhaar + verification payment first', 'TRIAL');
+    return user as DbUser;
+  }
 
   if (user.trial_expires_at) {
     return expireTrialIfNeeded(user as DbUser);

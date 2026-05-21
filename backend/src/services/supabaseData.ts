@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../config/supabase';
-import { grantTestingTrial, expireTrialIfNeeded } from './trialCredits';
+import { expireTrialIfNeeded } from './trialCredits';
 
 export type DbUser = {
   id: string;
@@ -8,6 +8,11 @@ export type DbUser = {
   plan_type: string;
   wallet_balance: number;
   trial_expires_at?: string | null;
+  aadhaar_verified_at?: string | null;
+  aadhaar_last4?: string | null;
+  aadhaar_otp_expires_at?: string | null;
+  trial_verification_paid_at?: string | null;
+  trial_verification_payment_id?: string | null;
   status?: string;
   created_at: string;
 };
@@ -37,10 +42,7 @@ export const db = {
     role?: 'USER' | 'ADMIN';
   }): Promise<DbUser> {
     const existing = await this.getUserById(input.id);
-    if (existing) {
-      const granted = await grantTestingTrial(input.id, input.email);
-      return granted ?? existing;
-    }
+    if (existing) return existing;
 
     const { data, error } = await supabaseAdmin
       .from('users')
@@ -55,8 +57,7 @@ export const db = {
       .select()
       .single();
     if (error) throwDb(error, 'upsertUserFromAuth');
-    const granted = await grantTestingTrial(input.id, input.email);
-    return granted ?? (data as DbUser);
+    return data as DbUser;
   },
 
   async listUsersForAdmin() {

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { formatInr } from '../lib/vpsPricing';
 import { TrialCreditsBanner } from '../components/TrialCreditsBanner';
+import { TrialCreditsClaim } from '../components/TrialCreditsClaim';
 import { Server, Cpu, Wallet, ShieldAlert, ArrowRight, Play, Square, Sparkles } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -52,6 +53,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <TrialCreditsBanner />
+      <TrialCreditsClaim />
 
       {/* Warning callout if they don't have any premium bought instances */}
       {vpsList.length === 0 && !user?.trialActive && (

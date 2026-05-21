@@ -9,6 +9,21 @@ export interface ApiError extends Error {
   status: number;
 }
 
+export interface TrialVerificationState {
+  step: number;
+  aadhaarVerified: boolean;
+  aadhaarLast4: string | null;
+  verificationPaid: boolean;
+  trialActive: boolean;
+  trialExpired: boolean;
+  trialExpiresAt: string | null;
+  trialMsRemaining: number;
+  trialCreditsInr: number;
+  verificationFeeInr: number;
+  canStartClaim: boolean;
+  demoOtpHint?: string;
+}
+
 export function isApiError(err: unknown): err is ApiError {
   return err instanceof Error && (err as ApiError).status !== undefined;
 }
@@ -55,8 +70,36 @@ export const api = {
         trialExpiresAt?: string | null;
         trialCreditsInr?: number;
         trialMsRemaining?: number;
+        trialVerification?: TrialVerificationState;
         createdAt: string;
       }>('/auth/profile', { token }),
+  },
+
+  trial: {
+    status: (token: string) => request<TrialVerificationState>('/trial/status', { token }),
+    sendAadhaarOtp: (token: string, aadhaar: string) =>
+      request<{ message: string; maskedAadhaar: string; demoOtp: string }>('/trial/aadhaar/send-otp', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ aadhaar }),
+      }),
+    verifyAadhaarOtp: (token: string, otp: string) =>
+      request<{ message: string }>('/trial/aadhaar/verify-otp', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ otp }),
+      }),
+    createVerificationPayment: (token: string) =>
+      request<{ orderId: string; amount: number; currency: string }>('/trial/verification-payment', {
+        method: 'POST',
+        token,
+      }),
+    complete: (token: string, body: { orderId: string; paymentId?: string }) =>
+      request<{ message: string } & TrialVerificationState>('/trial/complete', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(body),
+      }),
   },
 
   vps: {

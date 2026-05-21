@@ -6,8 +6,9 @@ import {
   isTrialActive,
   trialMsRemaining,
   TRIAL_CREDITS_INR,
-  grantTestingTrial,
+  expireTrialIfNeeded,
 } from '../services/trialCredits';
+import { getTrialVerificationState } from './trialController';
 
 export const getProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -18,12 +19,9 @@ export const getProfile = async (req: AuthenticatedRequest, res: Response, next:
     let user = await db.getUserById(userId);
     if (!user) return res.status(404).json({ error: 'User profile not found' });
 
-    if (!user.trial_expires_at && email && user.role !== 'ADMIN') {
-      const granted = await grantTestingTrial(userId, email);
-      if (granted) user = granted;
-    }
-
+    user = await expireTrialIfNeeded(user);
     const trialActive = isTrialActive(user.trial_expires_at);
+    const trialVerification = getTrialVerificationState(user);
 
     res.json({
       id: user.id,
@@ -35,6 +33,7 @@ export const getProfile = async (req: AuthenticatedRequest, res: Response, next:
       trialExpiresAt: user.trial_expires_at ?? null,
       trialCreditsInr: trialActive ? TRIAL_CREDITS_INR : 0,
       trialMsRemaining: trialMsRemaining(user.trial_expires_at),
+      trialVerification,
       createdAt: user.created_at,
     });
   } catch (err) {

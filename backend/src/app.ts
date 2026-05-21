@@ -10,6 +10,7 @@ import vpsRoutes from './routes/vpsRoutes';
 import cloudPcRoutes from './routes/cloudPcRoutes';
 import billingRoutes from './routes/billingRoutes';
 import adminRoutes from './routes/adminRoutes';
+import trialRoutes from './routes/trialRoutes';
 import { errorHandler } from './middlewares/errorMiddleware';
 
 dotenv.config();
@@ -37,6 +38,7 @@ app.get('/api', (_req, res) => {
       vps: '/api/vps',
       cloudpc: '/api/cloudpc',
       billing: '/api/billing',
+      trial: '/api/trial',
       admin: '/api/admin',
     },
     health: '/health',
@@ -48,6 +50,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/vps', vpsRoutes);
 app.use('/api/cloudpc', cloudPcRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/trial', trialRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/', (_req, res) => {
