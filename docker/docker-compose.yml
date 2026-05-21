@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hexcloud
+      POSTGRES_PASSWORD: hexcloud
+      POSTGRES_DB: hexcloud
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.api
+    ports:
+      - '5000:5000'
+    environment:
+      DATABASE_URL: postgresql://hexcloud:hexcloud@postgres:5432/hexcloud
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      FRONTEND_URL: http://localhost:3000
+      VPS_PROVIDER: demo
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:

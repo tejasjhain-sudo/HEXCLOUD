@@ -29,11 +29,6 @@ export async function grantTestingTrial(userId: string, email: string): Promise<
 
   if (user.role === 'ADMIN') return user as DbUser;
 
-  if (!user.aadhaar_verified_at || !user.trial_verification_paid_at) {
-    logger.error('Trial grant blocked: complete Aadhaar + verification payment first', 'TRIAL');
-    return user as DbUser;
-  }
-
   if (user.trial_expires_at) {
     return expireTrialIfNeeded(user as DbUser);
   }

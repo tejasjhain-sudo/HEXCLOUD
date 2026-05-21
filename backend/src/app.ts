@@ -11,6 +11,10 @@ import cloudPcRoutes from './routes/cloudPcRoutes';
 import billingRoutes from './routes/billingRoutes';
 import adminRoutes from './routes/adminRoutes';
 import trialRoutes from './routes/trialRoutes';
+import v2AuthRoutes from './routes/v2/authRoutes';
+import v2TrialRoutes from './routes/v2/trialRoutes';
+import v2AdminRoutes from './routes/v2/adminRoutes';
+import v2WebhookRoutes from './routes/v2/webhookRoutes';
 import { errorHandler } from './middlewares/errorMiddleware';
 
 dotenv.config();
@@ -27,8 +31,16 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
+
+app.disable('x-powered-by');
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 app.get('/api', (_req, res) => {
   res.json({
@@ -39,6 +51,7 @@ app.get('/api', (_req, res) => {
       cloudpc: '/api/cloudpc',
       billing: '/api/billing',
       trial: '/api/trial',
+      v2: '/api/v2',
       admin: '/api/admin',
     },
     health: '/health',
@@ -51,6 +64,10 @@ app.use('/api/vps', vpsRoutes);
 app.use('/api/cloudpc', cloudPcRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/trial', trialRoutes);
+app.use('/api/v2/auth', v2AuthRoutes);
+app.use('/api/v2/trial', v2TrialRoutes);
+app.use('/api/v2/admin', v2AdminRoutes);
+app.use('/api/v2/webhooks', v2WebhookRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/', (_req, res) => {

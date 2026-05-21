@@ -21,8 +21,7 @@ export interface TrialVerificationState {
   trialCreditsInr: number;
   verificationFeeInr: number;
   canStartClaim: boolean;
-  digilockerConfigured?: boolean;
-  digilockerName?: string | null;
+  useV2Api?: boolean;
 }
 
 export function isApiError(err: unknown): err is ApiError {
@@ -78,11 +77,6 @@ export const api = {
 
   trial: {
     status: (token: string) => request<TrialVerificationState>('/trial/status', { token }),
-    startDigilocker: (token: string) =>
-      request<{ authorizeUrl: string; configured: boolean }>('/trial/digilocker/start', {
-        method: 'POST',
-        token,
-      }),
     createVerificationPayment: (token: string) =>
       request<{ orderId: string; amount: number; currency: string }>('/trial/verification-payment', {
         method: 'POST',

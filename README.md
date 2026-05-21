@@ -6,9 +6,12 @@ SaaS control plane for VPS instances, GPU Cloud PC sessions, billing, and an ent
 
 | Layer | Tech |
 |-------|------|
-| Frontend | React 18, TypeScript, Vite, Tailwind, Zustand, React Router |
+| Frontend (new) | **Next.js 14** — `apps/web` (Vercel, dark dashboard) |
+| Frontend (legacy) | React 18, Vite — `frontend/` |
 | API | Node.js, Express, Socket.io |
-| Data & Auth | Supabase (Postgres + Auth) |
+| Database | **PostgreSQL** (Prisma) + legacy Supabase |
+| Auth (v2) | Email OTP + JWT sessions |
+| Anti-abuse | Turnstile, fingerprint, IP/VPN checks |
 | Payments | Stripe, Razorpay (optional) |
 
 ## Quick start (local)
@@ -28,11 +31,13 @@ npm run dev
 
 | Service | Platform |
 |---------|----------|
-| Frontend | **Vercel** (`frontend/`) |
-| API | **Render** (`backend/`, see `render.yaml`) |
-| Database | **Supabase** |
+| Frontend | **Vercel** (`apps/web/`) |
+| API | **Your VPS** (Docker or Node) |
+| Database | **PostgreSQL** |
 
-Full step-by-step: **[deployment_guide.md](./deployment_guide.md)**
+- Architecture: **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
+- Deploy guide: **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)**
+- Legacy Render guide: **[deployment_guide.md](./deployment_guide.md)**
 
 ## Project layout
 

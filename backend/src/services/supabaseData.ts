@@ -13,10 +13,6 @@ export type DbUser = {
   aadhaar_otp_expires_at?: string | null;
   trial_verification_paid_at?: string | null;
   trial_verification_payment_id?: string | null;
-  digilocker_id?: string | null;
-  digilocker_verified_name?: string | null;
-  digilocker_oauth_state?: string | null;
-  digilocker_code_verifier?: string | null;
   status?: string;
   created_at: string;
 };

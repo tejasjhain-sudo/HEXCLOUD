@@ -3,12 +3,16 @@ import app from './app';
 import { socketService } from './services/socketService';
 import { logger } from './utils/logger';
 import { ensureDemoComputeNode } from './services/trialCredits';
+import { startTrialExpiryJob } from './jobs/trialExpiryJob';
 
 const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
 
 socketService.init(server);
+if (process.env.DATABASE_URL) {
+  startTrialExpiryJob();
+}
 
 void ensureDemoComputeNode().then((id) => {
   if (id) logger.info('Demo compute node ready for VPS testing', 'SYSTEM');
