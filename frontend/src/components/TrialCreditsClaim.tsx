@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, CreditCard, Fingerprint, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { CheckCircle2, CreditCard, ExternalLink, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 import { api, isApiError } from '../lib/api';
 import { openRazorpayCheckout } from '../lib/payments';
 import { useStore } from '../store/useStore';
@@ -7,7 +8,7 @@ import { formatInr } from '../lib/vpsPricing';
 import type { TrialVerificationState } from '../lib/api';
 
 const STEPS = [
-  { id: 1, title: 'Aadhaar', desc: 'Verify identity with OTP' },
+  { id: 1, title: 'DigiLocker', desc: 'Verify Aadhaar via DigiLocker' },
   { id: 2, title: 'Pay ₹5', desc: 'One-time verification fee' },
   { id: 3, title: 'Credits', desc: '₹10,000 for 2 hours' },
 ];
@@ -17,11 +18,9 @@ export const TrialCreditsClaim: React.FC = () => {
   const user = useStore((s) => s.user);
   const fetchProfile = useStore((s) => s.fetchProfile);
   const setError = useStore((s) => s.setError);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [status, setStatus] = useState<TrialVerificationState | null>(null);
-  const [aadhaar, setAadhaar] = useState('');
-  const [otp, setOtp] = useState('');
-  const [masked, setMasked] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [localMsg, setLocalMsg] = useState<string | null>(null);
 
@@ -39,6 +38,23 @@ export const TrialCreditsClaim: React.FC = () => {
     loadStatus();
   }, [token, user?.trialActive]);
 
+  useEffect(() => {
+    const dl = searchParams.get('digilocker');
+    if (!dl) return;
+
+    if (dl === 'verified') {
+      setLocalMsg('DigiLocker verified. Complete ₹5 payment to unlock credits.');
+      void loadStatus();
+      void fetchProfile();
+    } else if (dl === 'error') {
+      setError(searchParams.get('message') || 'DigiLocker verification failed');
+    }
+
+    searchParams.delete('digilocker');
+    searchParams.delete('message');
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams, fetchProfile, setError]);
+
   if (!token || !user || user.role === 'ADMIN' || user.trialActive) return null;
 
   const step = status?.step ?? 1;
@@ -52,31 +68,14 @@ export const TrialCreditsClaim: React.FC = () => {
     );
   }
 
-  const handleSendOtp = async () => {
+  const handleDigilocker = async () => {
     setLocalMsg(null);
     setLoading(true);
     try {
-      const res = await api.trial.sendAadhaarOtp(token, aadhaar);
-      setMasked(res.maskedAadhaar);
-      setLocalMsg(`OTP sent. Demo code: ${res.demoOtp}`);
+      const res = await api.trial.startDigilocker(token);
+      window.location.href = res.authorizeUrl;
     } catch (err) {
-      setError(isApiError(err) ? err.message : 'Failed to send OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setLocalMsg(null);
-    setLoading(true);
-    try {
-      await api.trial.verifyAadhaarOtp(token, otp);
-      setLocalMsg('Aadhaar verified. Proceed to pay ₹5.');
-      await loadStatus();
-      await fetchProfile();
-    } catch (err) {
-      setError(isApiError(err) ? err.message : 'Invalid OTP');
-    } finally {
+      setError(isApiError(err) ? err.message : 'Could not start DigiLocker');
       setLoading(false);
     }
   };
@@ -121,7 +120,7 @@ export const TrialCreditsClaim: React.FC = () => {
         <div>
           <h2 className="text-lg font-black text-slate-900">Claim ₹10,000 testing credits</h2>
           <p className="text-sm text-slate-600 mt-0.5">
-            Complete identity verification, pay a one-time ₹5 fee, and get 2 hours of sandbox VPS credits.
+            Verify with DigiLocker (Aadhaar), pay ₹5 once, then get 2 hours of sandbox VPS credits.
           </p>
         </div>
       </div>
@@ -131,9 +130,7 @@ export const TrialCreditsClaim: React.FC = () => {
           <div
             key={s.id}
             className={`rounded-xl px-3 py-2 border text-center ${
-              step >= s.id
-                ? 'border-indigo-300 bg-indigo-50'
-                : 'border-slate-200 bg-white/80'
+              step >= s.id ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white/80'
             }`}
           >
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Step {s.id}</p>
@@ -151,49 +148,37 @@ export const TrialCreditsClaim: React.FC = () => {
       {step === 1 && (
         <div className="space-y-3 bg-white/80 rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-            <Fingerprint className="h-4 w-4 text-indigo-600" />
-            Link Aadhaar to your account
+            <ShieldCheck className="h-4 w-4 text-indigo-600" />
+            Verify Aadhaar through DigiLocker
           </div>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={14}
-            placeholder="12-digit Aadhaar number"
-            value={aadhaar}
-            onChange={(e) => setAadhaar(e.target.value.replace(/\D/g, '').slice(0, 12))}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-mono"
-          />
+          <p className="text-xs text-slate-600 leading-relaxed">
+            You will sign in on the official DigiLocker (Meri Pehchaan) portal. HEXCloud only receives confirmation
+            that your Aadhaar is linked — not your full Aadhaar number.
+          </p>
+
+          {status?.digilockerConfigured === false && (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              DigiLocker is not configured on the server yet. Add partner API keys on Render, then redeploy.
+            </p>
+          )}
+
           <button
             type="button"
-            disabled={loading || aadhaar.length !== 12}
-            onClick={handleSendOtp}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold disabled:opacity-50"
+            disabled={loading || status?.digilockerConfigured === false}
+            onClick={handleDigilocker}
+            className="w-full py-3 rounded-xl bg-[#1a4480] hover:bg-[#15366a] text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? 'Sending…' : 'Send OTP to registered mobile'}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ExternalLink className="h-4 w-4" />
+            )}
+            Continue with DigiLocker
           </button>
-          {masked && (
-            <>
-              <p className="text-xs text-slate-500">Linked: {masked}</p>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="6-digit OTP"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-mono"
-              />
-              <button
-                type="button"
-                disabled={loading || otp.length !== 6}
-                onClick={handleVerifyOtp}
-                className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                Verify Aadhaar
-              </button>
-            </>
-          )}
+
+          <p className="text-[10px] text-slate-500 text-center">
+            Requires a DigiLocker account with e-Aadhaar enabled
+          </p>
         </div>
       )}
 
@@ -201,11 +186,13 @@ export const TrialCreditsClaim: React.FC = () => {
         <div className="space-y-3 bg-white/80 rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Aadhaar verified (•••• {status?.aadhaarLast4})
+            DigiLocker verified
+            {status?.digilockerName ? ` — ${status.digilockerName}` : ''}
+            {status?.aadhaarLast4 ? ` (Aadhaar •••• ${status.aadhaarLast4})` : ''}
           </div>
           <p className="text-xs text-slate-600">
-            Pay {formatInr(status?.verificationFeeInr ?? 5)} to confirm your identity. This is not wallet credit — it
-            unlocks the one-time testing grant.
+            Pay {formatInr(status?.verificationFeeInr ?? 5)} to confirm your identity. This unlocks the one-time ₹10,000
+            testing grant.
           </p>
           <button
             type="button"

@@ -12,18 +12,17 @@ import {
 } from '../services/trialCredits';
 import type { DbUser } from '../services/supabaseData';
 import { logger } from '../utils/logger';
+import {
+  buildAuthorizeUrl,
+  exchangeAuthorizationCode,
+  fetchDigilockerUser,
+  generatePkce,
+  isDigilockerConfigured,
+  maskedAadhaarFromIdToken,
+} from '../services/digilockerService';
+import crypto from 'crypto';
 
 export const TRIAL_VERIFICATION_FEE_INR = 5;
-/** Demo OTP for sandbox — replace with UIDAI provider in production */
-export const DEMO_AADHAAR_OTP = '123456';
-
-function normalizeAadhaar(raw: string): string {
-  return raw.replace(/\s/g, '');
-}
-
-function isValidAadhaar(num: string): boolean {
-  return /^\d{12}$/.test(num) && num[0] !== '0' && num[0] !== '1';
-}
 
 export function getTrialVerificationState(user: DbUser) {
   const aadhaarVerified = Boolean(user.aadhaar_verified_at);
@@ -48,9 +47,116 @@ export function getTrialVerificationState(user: DbUser) {
     trialCreditsInr: trialActive ? TRIAL_CREDITS_INR : 0,
     verificationFeeInr: TRIAL_VERIFICATION_FEE_INR,
     canStartClaim: !trialActive && !trialExpired,
-    demoOtpHint: process.env.NODE_ENV === 'production' ? undefined : DEMO_AADHAAR_OTP,
+    digilockerConfigured: isDigilockerConfigured(),
+    digilockerName: user.digilocker_verified_name ?? null,
   };
 }
+
+export const startDigilockerAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!isDigilockerConfigured()) {
+      return res.status(503).json({
+        error: 'DigiLocker is not configured. Add DIGILOCKER_CLIENT_ID, DIGILOCKER_CLIENT_SECRET, and DIGILOCKER_REDIRECT_URI on Render.',
+        configured: false,
+      });
+    }
+
+    const { verifier, challenge } = generatePkce();
+    const state = crypto.randomBytes(24).toString('base64url');
+
+    const { error } = await supabaseAdmin
+      .from('users')
+      .update({
+        digilocker_oauth_state: state,
+        digilocker_code_verifier: verifier,
+      })
+      .eq('id', userId);
+
+    if (error) {
+      return res.status(500).json({
+        error: 'DigiLocker columns missing. Run supabase_trial_kyc_migration.sql in Supabase.',
+      });
+    }
+
+    const authorizeUrl = buildAuthorizeUrl(state, challenge);
+    res.json({ authorizeUrl, configured: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const digilockerCallback = async (req: AuthenticatedRequest, res: Response) => {
+  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const redirectWith = (params: Record<string, string>) => {
+    const q = new URLSearchParams(params).toString();
+    res.redirect(`${frontend}/dashboard?${q}`);
+  };
+
+  try {
+    const code = req.query.code as string | undefined;
+    const state = req.query.state as string | undefined;
+    const oauthError = req.query.error as string | undefined;
+
+    if (oauthError) {
+      return redirectWith({
+        digilocker: 'error',
+        message: (req.query.error_description as string) || oauthError,
+      });
+    }
+
+    if (!code || !state) {
+      return redirectWith({ digilocker: 'error', message: 'Missing authorization code' });
+    }
+
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('digilocker_oauth_state', state)
+      .maybeSingle();
+
+    if (error || !user?.digilocker_code_verifier) {
+      return redirectWith({ digilocker: 'error', message: 'Invalid or expired DigiLocker session' });
+    }
+
+    const tokenRes = await exchangeAuthorizationCode(code, user.digilocker_code_verifier);
+    const profile = await fetchDigilockerUser(tokenRes.access_token);
+
+    if (profile.eaadhaar !== 'Y') {
+      return redirectWith({
+        digilocker: 'error',
+        message: 'Link your Aadhaar in DigiLocker before continuing',
+      });
+    }
+
+    const last4 = maskedAadhaarFromIdToken(tokenRes.id_token);
+
+    const { error: upErr } = await supabaseAdmin
+      .from('users')
+      .update({
+        aadhaar_verified_at: new Date().toISOString(),
+        aadhaar_last4: last4,
+        digilocker_id: profile.digilockerid,
+        digilocker_verified_name: profile.name,
+        digilocker_oauth_state: null,
+        digilocker_code_verifier: null,
+        aadhaar_otp_expires_at: null,
+      })
+      .eq('id', user.id);
+
+    if (upErr) {
+      return redirectWith({ digilocker: 'error', message: upErr.message });
+    }
+
+    await logger.info(`DigiLocker Aadhaar verified for ${user.email}`, 'TRIAL_KYC');
+    return redirectWith({ digilocker: 'verified' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'DigiLocker verification failed';
+    return redirectWith({ digilocker: 'error', message });
+  }
+};
 
 export const getTrialStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -62,87 +168,6 @@ export const getTrialStatus = async (req: AuthenticatedRequest, res: Response, n
 
     const user = (await expireTrialIfNeeded(data as DbUser)) as DbUser;
     res.json(getTrialVerificationState(user));
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const sendAadhaarOtp = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?.id;
-    const email = req.user?.email;
-    if (!userId || !email) return res.status(401).json({ error: 'Unauthorized' });
-
-    const { aadhaar } = z.object({ aadhaar: z.string().min(12).max(14) }).parse(req.body);
-    const normalized = normalizeAadhaar(aadhaar);
-    if (!isValidAadhaar(normalized)) {
-      return res.status(400).json({ error: 'Enter a valid 12-digit Aadhaar number' });
-    }
-
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    const last4 = normalized.slice(-4);
-
-    const { error } = await supabaseAdmin
-      .from('users')
-      .update({
-        aadhaar_last4: last4,
-        aadhaar_otp_expires_at: otpExpires,
-        aadhaar_verified_at: null,
-      })
-      .eq('id', userId);
-
-    if (error) {
-      return res.status(500).json({
-        error: 'KYC columns missing. Run supabase_trial_kyc_migration.sql in Supabase.',
-      });
-    }
-
-    await logger.info(`Aadhaar OTP sent (demo) for ${email}, ends ${last4}`, 'TRIAL_KYC');
-
-    res.json({
-      message: 'OTP sent to Aadhaar-linked mobile',
-      maskedAadhaar: `XXXX-XXXX-${last4}`,
-      expiresInMinutes: 10,
-      demoOtp: DEMO_AADHAAR_OTP,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const verifyAadhaarOtp = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-    const { otp } = z.object({ otp: z.string().length(6) }).parse(req.body);
-
-    const { data: user, error } = await supabaseAdmin.from('users').select('*').eq('id', userId).maybeSingle();
-    if (error || !user) return res.status(404).json({ error: 'User not found' });
-
-    if (!user.aadhaar_otp_expires_at || new Date(user.aadhaar_otp_expires_at).getTime() < Date.now()) {
-      return res.status(400).json({ error: 'OTP expired. Request a new OTP.' });
-    }
-
-    if (otp !== DEMO_AADHAAR_OTP) {
-      return res.status(400).json({ error: 'Invalid OTP. Use the code sent to your mobile.' });
-    }
-
-    const { error: upErr } = await supabaseAdmin
-      .from('users')
-      .update({
-        aadhaar_verified_at: new Date().toISOString(),
-        aadhaar_otp_expires_at: null,
-      })
-      .eq('id', userId);
-
-    if (upErr) return res.status(500).json({ error: upErr.message });
-
-    res.json({
-      message: 'Aadhaar verified successfully',
-      aadhaarLast4: user.aadhaar_last4,
-      nextStep: 'pay_verification',
-    });
   } catch (err) {
     next(err);
   }

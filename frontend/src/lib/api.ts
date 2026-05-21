@@ -21,7 +21,8 @@ export interface TrialVerificationState {
   trialCreditsInr: number;
   verificationFeeInr: number;
   canStartClaim: boolean;
-  demoOtpHint?: string;
+  digilockerConfigured?: boolean;
+  digilockerName?: string | null;
 }
 
 export function isApiError(err: unknown): err is ApiError {
@@ -77,17 +78,10 @@ export const api = {
 
   trial: {
     status: (token: string) => request<TrialVerificationState>('/trial/status', { token }),
-    sendAadhaarOtp: (token: string, aadhaar: string) =>
-      request<{ message: string; maskedAadhaar: string; demoOtp: string }>('/trial/aadhaar/send-otp', {
+    startDigilocker: (token: string) =>
+      request<{ authorizeUrl: string; configured: boolean }>('/trial/digilocker/start', {
         method: 'POST',
         token,
-        body: JSON.stringify({ aadhaar }),
-      }),
-    verifyAadhaarOtp: (token: string, otp: string) =>
-      request<{ message: string }>('/trial/aadhaar/verify-otp', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ otp }),
       }),
     createVerificationPayment: (token: string) =>
       request<{ orderId: string; amount: number; currency: string }>('/trial/verification-payment', {
