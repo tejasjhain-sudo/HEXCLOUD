@@ -1,0 +1,35 @@
+/* src/pages/VpsManage.overrides.css */
+/* Overrides for a fresh blue‑gray theme */
+
+/* Backgrounds */
+.bg-slate-900, .bg-slate-950, .bg-slate-900\/30, .bg-slate-900\/40, .bg-slate-900\/60,
+.bg-slate-950\/30, .bg-slate-950\/40, .bg-slate-950\/50, .bg-slate-950\/60, .bg-slate-950\/80 {
+  @apply bg-gray-50; /* light bluish gray */
+}
+
+/* Borders */
+.border-white\/5, .border-white\/10, .border-white\/20 {
+  @apply border-gray-300; /* subtle gray borders */
+}
+
+/* Text */
+.text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400, .text-slate-450,
+.text-slate-500, .text-slate-550, .text-slate-600, .text-slate-650, .text-slate-700,
+.text-slate-800, .text-slate-900 {
+  @apply text-gray-800; /* dark readable text */
+}
+
+/* Placeholder text */
+.placeholder-slate-550, .placeholder-slate-600 {
+  @apply placeholder-gray-600;
+}
+
+/* Hover states for interactive text */
+.text-slate-400:hover, .text-slate-500:hover {
+  @apply text-indigo-600;
+}
+
+/* Ensure focus rings are visible */
+.focus\:outline-none:focus {
+  @apply outline-none ring-2 ring-indigo-500;
+}

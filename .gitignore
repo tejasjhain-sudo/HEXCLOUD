@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+node_modules/
+dist/
+backend/dist/
+frontend/dist/
+.DS_Store
+*.log
+.vite/
+.npm-cache/
+**/.npm-cache/
+.cursor/

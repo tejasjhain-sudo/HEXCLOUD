@@ -1,0 +1,107 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum PlanType {
+  FREE
+  BASIC
+  PRO
+}
+
+enum VpsStatus {
+  RUNNING
+  STOPPED
+  PROVISIONING
+  ERROR
+}
+
+enum CloudPcStatus {
+  QUEUED
+  ACTIVE
+  ENDED
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  role          Role           @default(USER)
+  planType      PlanType       @default(FREE)
+  walletBalance Float          @default(0.0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  vpsInstances  VpsInstance[]
+  gpuSessions   GpuSession[]
+  transactions  Transaction[]
+  invoices      Invoice[]
+}
+
+model VpsInstance {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String
+  status     VpsStatus @default(PROVISIONING)
+  ipAddress  String
+  osType     String
+  cpu        Int
+  ram        Int       // in MB or GB
+  storage    Int       // in GB
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GpuSession {
+  id        String         @id @default(uuid())
+  userId    String
+  gpuType   String
+  status    CloudPcStatus  @default(QUEUED)
+  startTime DateTime?
+  endTime   DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Float
+  type      String   // CREDIT, DEBIT
+  description String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Float
+  status    String   // PAID, UNPAID
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  level     String   // INFO, WARN, ERROR
+  message   String
+  service   String   // VPS, CLOUD_PC, BILLING, AUTH
+  createdAt DateTime @default(now())
+}

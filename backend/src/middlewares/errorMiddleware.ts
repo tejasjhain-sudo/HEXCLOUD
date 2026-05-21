@@ -1,0 +1,12 @@
+import { Request, Response, NextFunction } from 'express';
+import { logger } from '../utils/logger';
+
+export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+  logger.error(err.message || 'An unexpected server error occurred', 'EXPRESS_SERVER', err);
+
+  const status = err.status || 500;
+  res.status(status).json({
+    error: err.message || 'Internal Server Error',
+    status,
+  });
+};

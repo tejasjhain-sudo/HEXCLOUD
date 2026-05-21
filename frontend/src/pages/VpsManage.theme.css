@@ -1,0 +1,19 @@
+/* VpsManage scoped styles */
+
+.vps-manage .vps-terminal-screen {
+  background-color: rgb(15 23 42);
+  border-color: rgb(51 65 85);
+}
+
+.vps-manage .vps-terminal-input {
+  color: rgb(226 232 240);
+}
+
+.vps-manage .vps-terminal-input::placeholder {
+  color: rgb(100 116 139);
+}
+
+.vps-manage .vps-modal-log {
+  background-color: rgb(15 23 42);
+  color: rgb(52 211 153);
+}

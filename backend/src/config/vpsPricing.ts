@@ -1,0 +1,33 @@
+/** VPS size tiers — RAM in MB, fixed 2 vCPU, price in INR (credits). */
+export const VPS_MAX_CPU = 8;
+export const VPS_MAX_RAM_MB = 16384;
+
+export type VpsTierId = '1gb-2cpu' | '2gb-2cpu' | '4gb-2cpu' | '8gb-2cpu' | '16gb-2cpu';
+
+export interface VpsTier {
+  id: VpsTierId;
+  label: string;
+  cpu: number;
+  ramMb: number;
+  priceInr: number;
+}
+
+export const VPS_TIERS: readonly VpsTier[] = [
+  { id: '1gb-2cpu', label: '1 GB RAM · 2 vCPU', cpu: 2, ramMb: 1024, priceInr: 200 },
+  { id: '2gb-2cpu', label: '2 GB RAM · 2 vCPU', cpu: 2, ramMb: 2048, priceInr: 400 },
+  { id: '4gb-2cpu', label: '4 GB RAM · 2 vCPU', cpu: 2, ramMb: 4096, priceInr: 570 },
+  { id: '8gb-2cpu', label: '8 GB RAM · 2 vCPU', cpu: 2, ramMb: 8192, priceInr: 770 },
+  { id: '16gb-2cpu', label: '16 GB RAM · 2 vCPU', cpu: 2, ramMb: 16384, priceInr: 1500 },
+] as const;
+
+export function getVpsTierById(id: string): VpsTier | undefined {
+  return VPS_TIERS.find((t) => t.id === id);
+}
+
+export function resolveVpsTier(cpu: number, ramMb: number): VpsTier | undefined {
+  return VPS_TIERS.find((t) => t.cpu === cpu && t.ramMb === ramMb);
+}
+
+export function formatInr(amount: number): string {
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
