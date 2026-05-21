@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { formatInr } from '../lib/vpsPricing';
@@ -17,18 +17,14 @@ export const Dashboard: React.FC = () => {
     stopVps,
   } = useStore();
 
-  // Fake interactive 32GB VPS state for testing
-  const [fakeVpsStatus, setFakeVpsStatus] = useState<'RUNNING' | 'STOPPED'>('RUNNING');
-
   useEffect(() => {
     fetchVps();
     fetchSessionStatus();
   }, []);
 
-  // Compute stats including the fake 32GB node
-  const activeVpsCount = vpsList.filter((v) => v.status === 'RUNNING').length + (fakeVpsStatus === 'RUNNING' ? 1 : 0);
+  const activeVpsCount = vpsList.filter((v) => v.status === 'RUNNING').length;
   const provisioningVpsCount = vpsList.filter((v) => v.status === 'PROVISIONING').length;
-  const totalVpsCount = vpsList.length + 1; // +1 for the fake 32GB test instance
+  const totalVpsCount = vpsList.length;
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
@@ -152,60 +148,17 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            {/* The Fake 32GB VPS Instance for Testing */}
-            <Link
-              to="/vps/hex-sandbox-32gb"
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-indigo-50/30 border border-indigo-150 rounded-2xl gap-4 hover:shadow-md hover:border-indigo-300 transition-all relative overflow-hidden group block cursor-pointer"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-100/10 to-transparent pointer-events-none rounded-full" />
-              
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2.5">
-                  <span className="font-extrabold text-sm text-slate-900">HEX-TEST-32GB-NODE</span>
-                  <span className="rounded bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 text-[9px] font-bold text-indigo-700 uppercase tracking-wide">
-                    Testing Sandbox
-                  </span>
-                  <span className={`inline-block w-2.5 h-2.5 rounded-full ${
-                    fakeVpsStatus === 'RUNNING' ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-rose-500'
-                  }`} />
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{fakeVpsStatus}</span>
-                </div>
-                <div className="text-xs text-slate-500">
-                  IP: <span className="font-mono text-slate-700 font-semibold">185.190.140.55</span> • OS: <span className="font-semibold text-slate-700">Ubuntu 24.04 LTS</span>
-                </div>
+            {/* User VPS instances */}
+            {vpsList.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <Server className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm font-medium">No VPS instances yet.</p>
+                <Link to="/vps" className="text-xs text-indigo-600 hover:text-indigo-800 font-bold mt-2 inline-block">
+                  Create your first VPS →
+                </Link>
               </div>
-
-              <div className="flex items-center space-x-4">
-                <div className="text-right hidden sm:block">
-                  <div className="text-xs text-indigo-900 font-black">8 vCPUs / 32 GB RAM</div>
-                  <div className="text-[10px] text-slate-500 font-bold font-mono">250 GB NVMe SSD</div>
-                </div>
-
-                <div className="flex space-x-2">
-                  {fakeVpsStatus === 'STOPPED' && (
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setFakeVpsStatus('RUNNING'); }}
-                      className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors shadow-sm"
-                      title="Start Test VM"
-                    >
-                      <Play className="h-4 w-4 fill-emerald-700" />
-                    </button>
-                  )}
-                  {fakeVpsStatus === 'RUNNING' && (
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setFakeVpsStatus('STOPPED'); }}
-                      className="p-2.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 transition-colors shadow-sm"
-                      title="Stop Test VM"
-                    >
-                      <Square className="h-4 w-4 fill-rose-700" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </Link>
-
-            {/* Supabase user instances */}
-            {vpsList.map((vps) => (
+            ) : (
+            vpsList.map((vps) => (
               <Link
                 key={vps.id}
                 to={`/vps/${vps.id}`}
@@ -253,7 +206,8 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
               </Link>
-            ))}
+            ))
+            )}
           </div>
         </div>
 
