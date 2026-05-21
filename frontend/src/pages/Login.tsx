@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { supabase } from '../config/supabase';
+import { supabase, supabaseConfigError } from '../config/supabase';
 import { KeyRound, Mail, AlertTriangle, ArrowRight, Chrome } from 'lucide-react';
 
 export const Login: React.FC = () => {
@@ -39,6 +39,12 @@ export const Login: React.FC = () => {
       return;
     }
 
+    if (supabaseConfigError) {
+      setError(supabaseConfigError);
+      setLocalLoading(false);
+      return;
+    }
+
     try {
       if (isLogin) {
         // Supabase sign in
@@ -65,7 +71,14 @@ export const Login: React.FC = () => {
         }
       }
     } catch (err) {
-      setError('An error occurred during authentication.');
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'Load failed' || msg === 'Failed to fetch') {
+        setError(
+          'Cannot reach Supabase. In Vercel, set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, redeploy, and add your Vercel URL in Supabase → Authentication → URL Configuration.',
+        );
+      } else {
+        setError(msg || 'An error occurred during authentication.');
+      }
     } finally {
       setLocalLoading(false);
     }
