@@ -347,6 +347,89 @@ export const db = {
     if (error) throwDb(error, 'updateComputeNode');
     return data;
   },
+
+  // ── Trial Requests ──────────────────────────────────────────────────
+  async createTrialRequest(userId: string, fullName: string, purpose: string, osPreference: string, comments?: string) {
+    const { data, error } = await supabaseAdmin
+      .from('trial_requests')
+      .insert({
+        user_id: userId,
+        full_name: fullName,
+        purpose,
+        os_preference: osPreference,
+        comments: comments ?? null,
+        status: 'PENDING',
+      })
+      .select()
+      .single();
+    if (error) throwDb(error, 'createTrialRequest');
+    return data;
+  },
+
+  async getUserTrialRequests(userId: string) {
+    const { data, error } = await supabaseAdmin
+      .from('trial_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throwDb(error, 'getUserTrialRequests');
+    return data ?? [];
+  },
+
+  async getUserLatestPendingRequest(userId: string) {
+    const { data, error } = await supabaseAdmin
+      .from('trial_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'PENDING')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throwDb(error, 'getUserLatestPendingRequest');
+    return data;
+  },
+
+  async getTrialRequestById(id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('trial_requests')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throwDb(error, 'getTrialRequestById');
+    return data;
+  },
+
+  async listAllTrialRequests() {
+    const { data, error } = await supabaseAdmin
+      .from('trial_requests')
+      .select('*, user:users!trial_requests_user_id_fkey(email)')
+      .order('created_at', { ascending: false });
+    if (error) {
+      // Fallback without join
+      const { data: flat, error: e2 } = await supabaseAdmin
+        .from('trial_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (e2) throwDb(e2, 'listAllTrialRequests');
+      const { data: users } = await supabaseAdmin.from('users').select('id, email');
+      return (flat ?? []).map((r) => ({
+        ...r,
+        user: { email: (users ?? []).find((u) => u.id === r.user_id)?.email ?? 'Unknown' },
+      }));
+    }
+    return data ?? [];
+  },
+
+  async updateTrialRequest(id: string, patch: Record<string, unknown>) {
+    const { data, error } = await supabaseAdmin
+      .from('trial_requests')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throwDb(error, 'updateTrialRequest');
+    return data;
+  },
 };
 
 /** Map API / DB VPS row to camelCase JSON for frontend */

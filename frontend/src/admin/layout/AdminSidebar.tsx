@@ -14,6 +14,7 @@ import {
   Package,
   ChevronLeft,
   Cloud,
+  FileText,
 } from 'lucide-react';
 import { useAdminContext } from '../context/AdminContext';
 
@@ -27,6 +28,7 @@ const navItems = [
   { to: '/admin/plans', label: 'Plans & Pricing', icon: Package },
   { to: '/admin/logs', label: 'Logs', icon: ScrollText },
   { to: '/admin/tickets', label: 'Support Tickets', icon: LifeBuoy },
+  { to: '/admin/trial-requests', label: 'Trial Requests', icon: FileText },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

@@ -11,6 +11,7 @@ import { AdminLogsPage } from './pages/AdminLogsPage';
 import { AdminTicketsPage } from './pages/AdminTicketsPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { AdminPlansPage } from './pages/AdminPlansPage';
+import { AdminTrialRequestsPage } from './pages/AdminTrialRequestsPage';
 
 export const AdminApp: React.FC = () => (
   <Routes>
@@ -24,6 +25,7 @@ export const AdminApp: React.FC = () => (
       <Route path="plans" element={<AdminPlansPage />} />
       <Route path="logs" element={<AdminLogsPage />} />
       <Route path="tickets" element={<AdminTicketsPage />} />
+      <Route path="trial-requests" element={<AdminTrialRequestsPage />} />
       <Route path="settings" element={<AdminSettingsPage />} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Route>

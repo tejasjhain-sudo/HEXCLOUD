@@ -15,6 +15,11 @@ import {
   updateComputeNode,
   getAdminOverview,
 } from '../controllers/adminController';
+import {
+  listTrialRequests,
+  approveTrialRequest,
+  rejectTrialRequest,
+} from '../controllers/trialRequestController';
 import { authenticateJWT } from '../middlewares/authMiddleware';
 import { requireAdmin } from '../middlewares/adminMiddleware';
 
@@ -37,5 +42,10 @@ router.get('/tickets', getTickets);
 router.patch('/tickets/:id', updateTicket);
 router.get('/nodes', getComputeNodes);
 router.patch('/nodes/:id', updateComputeNode);
+
+// Trial Request management
+router.get('/trial-requests', listTrialRequests);
+router.post('/trial-requests/:id/approve', approveTrialRequest);
+router.post('/trial-requests/:id/reject', rejectTrialRequest);
 
 export default router;

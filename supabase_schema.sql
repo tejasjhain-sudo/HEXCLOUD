@@ -123,8 +123,40 @@ CREATE POLICY "Allow admin read logs" ON public.system_logs
 CREATE POLICY "Allow public insert logs" ON public.system_logs
   FOR INSERT WITH CHECK (true);
 
+-- Create Trial Requests Table
+-- Users submit a form to request a VPS trial; admins approve or reject.
+CREATE TABLE IF NOT EXISTS public.trial_requests (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  status TEXT DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED')),
+  full_name TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  os_preference TEXT NOT NULL,
+  comments TEXT,
+  admin_note TEXT,
+  reviewed_by UUID REFERENCES public.users(id),
+  reviewed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.trial_requests ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow user read own requests" ON public.trial_requests
+  FOR SELECT USING (auth.uid() = user_id OR EXISTS (
+    SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'ADMIN'
+  ));
+
+CREATE POLICY "Allow user insert own request" ON public.trial_requests
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow admin manage requests" ON public.trial_requests
+  FOR ALL USING (EXISTS (
+    SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'ADMIN'
+  ));
+
 -- Enable Replication for Realtime updates on tables
 ALTER TABLE public.users REPLICA IDENTITY FULL;
 ALTER TABLE public.vps_instances REPLICA IDENTITY FULL;
 ALTER TABLE public.gpu_sessions REPLICA IDENTITY FULL;
 ALTER TABLE public.system_logs REPLICA IDENTITY FULL;
+ALTER TABLE public.trial_requests REPLICA IDENTITY FULL;

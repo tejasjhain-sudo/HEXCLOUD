@@ -54,6 +54,24 @@ async function request<T>(
   return body as T;
 }
 
+export interface TrialRequest {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+  fullName: string;
+  purpose: string;
+  osPreference: string;
+  comments: string | null;
+  adminNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminTrialRequest extends TrialRequest {
+  userId: string;
+  userEmail: string;
+  reviewedBy: string | null;
+}
+
 export const api = {
   health: () =>
     fetch(`${getApiOrigin()}/health`).then((r) => r.json() as Promise<{ status: string }>),
@@ -88,6 +106,15 @@ export const api = {
         token,
         body: JSON.stringify(body),
       }),
+    // New trial request flow (form-based, admin-approved)
+    submitRequest: (token: string, data: { fullName: string; purpose: string; osPreference: string; comments?: string }) =>
+      request<{ message: string; request: TrialRequest }>('/auth/trial-request', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(data),
+      }),
+    getMyRequests: (token: string) =>
+      request<TrialRequest[]>('/auth/trial-requests', { token }),
   },
 
   vps: {
@@ -186,6 +213,21 @@ export const api = {
         method: 'PATCH',
         token,
         body: JSON.stringify({ status }),
+      }),
+    // Trial request management
+    listTrialRequests: (token: string) =>
+      request<AdminTrialRequest[]>('/admin/trial-requests', { token }),
+    approveTrialRequest: (token: string, id: string, adminNote?: string) =>
+      request<{ message: string }>(`/admin/trial-requests/${id}/approve`, {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ adminNote }),
+      }),
+    rejectTrialRequest: (token: string, id: string, adminNote?: string) =>
+      request<{ message: string }>(`/admin/trial-requests/${id}/reject`, {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ adminNote }),
       }),
   },
 };

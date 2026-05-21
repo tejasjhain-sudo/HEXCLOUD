@@ -19,6 +19,7 @@ import type {
   ComputeNode,
   BillingOverview,
 } from '../types/billing';
+import type { TrialRequest, AdminTrialRequest } from '../lib/api';
 
 interface User {
   id: string;
@@ -123,6 +124,10 @@ interface StoreState {
   adminTickets: SupportTicket[];
   computeNodes: ComputeNode[];
   billingOverview: BillingOverview | null;
+  adminTrialRequests: AdminTrialRequest[];
+
+  // Trial request fields (user-facing)
+  myTrialRequests: TrialRequest[];
 
   // Actions
   init: () => void;
@@ -163,6 +168,13 @@ interface StoreState {
   stopSessionAdmin: (id: string) => Promise<void>;
   updateNodeStatus: (id: string, status: ComputeNode['status']) => Promise<void>;
   updateTicket: (id: string, updates: { status?: SupportTicket['status']; priority?: SupportTicket['priority']; adminNotes?: string }) => Promise<void>;
+  fetchAdminTrialRequests: () => Promise<void>;
+  approveTrialRequest: (id: string, adminNote?: string) => Promise<void>;
+  rejectTrialRequest: (id: string, adminNote?: string) => Promise<void>;
+
+  // Trial Request Actions (user-facing)
+  submitTrialRequest: (data: { fullName: string; purpose: string; osPreference: string; comments?: string }) => Promise<void>;
+  fetchMyTrialRequests: () => Promise<void>;
 }
 
 export const useStore = create<StoreState>((set, get) => {
@@ -186,6 +198,8 @@ export const useStore = create<StoreState>((set, get) => {
     adminTickets: [],
     computeNodes: [],
     billingOverview: null,
+    adminTrialRequests: [],
+    myTrialRequests: [],
 
     init: () => {
       supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -194,6 +208,7 @@ export const useStore = create<StoreState>((set, get) => {
           await get().fetchProfile();
           await get().fetchVps();
           await get().fetchSessionStatus();
+          await get().fetchMyTrialRequests();
 
           const sock = connectSocket(session.user.id);
           sock.off('vps_status_update');
@@ -790,6 +805,66 @@ export const useStore = create<StoreState>((set, get) => {
       try {
         await api.admin.stopSession(token, id);
         await get().fetchAdminData();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+
+    // ── Trial Request Actions (user-facing) ──────────────────────────────
+    submitTrialRequest: async (data) => {
+      const token = get().token;
+      if (!token) return;
+      set({ isLoading: true, error: null });
+      try {
+        await api.trial.submitRequest(token, data);
+        await get().fetchMyTrialRequests();
+      } catch (err: unknown) {
+        set({ error: isApiError(err) ? err.message : 'Failed to submit trial request' });
+      } finally {
+        set({ isLoading: false });
+      }
+    },
+
+    fetchMyTrialRequests: async () => {
+      const token = get().token;
+      if (!token) return;
+      try {
+        const requests = await api.trial.getMyRequests(token);
+        set({ myTrialRequests: requests });
+      } catch (e) {
+        console.error(e);
+      }
+    },
+
+    // ── Admin Trial Request Actions ─────────────────────────────────────
+    fetchAdminTrialRequests: async () => {
+      const token = get().token;
+      if (!token) return;
+      try {
+        const requests = await api.admin.listTrialRequests(token);
+        set({ adminTrialRequests: requests });
+      } catch (e) {
+        console.error(e);
+      }
+    },
+
+    approveTrialRequest: async (id, adminNote) => {
+      const token = get().token;
+      if (!token) return;
+      try {
+        await api.admin.approveTrialRequest(token, id, adminNote);
+        await get().fetchAdminTrialRequests();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+
+    rejectTrialRequest: async (id, adminNote) => {
+      const token = get().token;
+      if (!token) return;
+      try {
+        await api.admin.rejectTrialRequest(token, id, adminNote);
+        await get().fetchAdminTrialRequests();
       } catch (e) {
         console.error(e);
       }
