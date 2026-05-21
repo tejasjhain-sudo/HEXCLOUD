@@ -36,8 +36,16 @@ app.use('/api/cloudpc', cloudPcRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'HEXCloud API',
+    status: 'running',
+    health: '/health',
+    api: '/api',
+  });
+});
+
+app.get('/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });
 });
 
