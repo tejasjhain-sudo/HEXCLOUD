@@ -29,6 +29,20 @@ app.use(
 app.use(express.json());
 app.use(morgan('dev'));
 
+app.get('/api', (_req, res) => {
+  res.json({
+    service: 'HEXCloud API',
+    routes: {
+      auth: '/api/auth',
+      vps: '/api/vps',
+      cloudpc: '/api/cloudpc',
+      billing: '/api/billing',
+      admin: '/api/admin',
+    },
+    health: '/health',
+  });
+});
+
 // Core Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/vps', vpsRoutes);
