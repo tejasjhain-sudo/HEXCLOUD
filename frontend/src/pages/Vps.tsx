@@ -9,7 +9,7 @@ import {
   type VpsTierId,
 } from '../lib/vpsPricing';
 import { TrialCreditsBanner } from '../components/TrialCreditsBanner';
-import { TrialCreditsClaim } from '../components/TrialCreditsClaim';
+import { TrialRequestPanel } from '../components/TrialRequestPanel';
 
 export const Vps: React.FC = () => {
   const { vpsList, createVps, startVps, stopVps, deleteVps, fetchVps, fetchProfile, isLoading, error, setError, user } =
@@ -62,7 +62,7 @@ export const Vps: React.FC = () => {
       </div>
 
       <TrialCreditsBanner />
-      <TrialCreditsClaim />
+      <TrialRequestPanel />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-sm h-fit space-y-6">
